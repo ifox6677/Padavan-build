@@ -5,18 +5,19 @@ on:
     types: [published]
   push:
     tags:
-    - 'v*'
+      - 'v*'
   watch:
     types: [started]
 
 jobs:
   build:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest  # 更新为 ubuntu-latest
+
     if: github.event.repository.owner.id == github.event.sender.id
 
     steps:
     - name: Checkout
-      uses: actions/checkout@master
+      uses: actions/checkout@v3  # 更新为稳定的版本
 
     - name: Initialization environment
       env:
@@ -24,17 +25,15 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get -y install unzip libtool-bin curl cmake gperf gawk flex bison nano xxd fakeroot \
-        cpio git wget
-
-        # Install Python and necessary packages
-        sudo apt-get -y install python3 python3-pip
-        pip3 install docutils
+        cpio git gettext automake autopoint texinfo build-essential help2man \
+        pkg-config zlib1g-dev libgmp3-dev libmpc-dev libmpfr-dev libncurses5-dev libltdl-dev wget \
+        python3 python3-docutils python-is-python3  # 替换 python-docutils 并添加 python3 相关包
 
     - name: Clone source code
       env:
-        KERNEL: 3.4
+        KERNEL: 3.4  # 修改为你需要的内核版本
       run: |
-        if [ "$KERNEL" = "4.4" ] ; then
+        if [ "$KERNEL" = "4.4" ]; then
           git clone --depth=1 https://github.com/MeIsReallyBa/padavan-4.4.git /opt/rt-n56u
         else
           git clone --depth=1 https://github.com/chongshengB/rt-n56u.git /opt/rt-n56u
@@ -45,19 +44,17 @@ jobs:
 
     - name: Build Firmware
       env:
-        TNAME: K2P
-        KERNEL: 3.4
+        TNAME: K2P  # 修改为你需要编译的型号
+        KERNEL: 3.4  # 修改为你需要的内核版本
       run: |
         cd /opt/rt-n56u/trunk
         if [ ! -f configs/templates/$TNAME.config ]; then
-          echo "configs/templates/$TNAME.config not found"
+          echo "Error: configs/templates/$TNAME.config not found."
           exit 1
         fi
-
         cp -f configs/templates/$TNAME.config .config
 
-        # Modify the configuration
-        sed -i 's/CONFIG_FIRMWARE_INCLUDE_OPENSSL_EXE=n/CONFIG_FIRMWARE_INCLUDE_OPENSSL_EXE=y/g' .config
+        # 删除不需要的配置项
         sed -i '/CONFIG_FIRMWARE_INCLUDE_MENTOHUST/d' .config
         sed -i '/CONFIG_FIRMWARE_INCLUDE_SCUTCLIENT/d' .config
         sed -i '/CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS/d' .config
@@ -71,8 +68,8 @@ jobs:
         sed -i '/CONFIG_FIRMWARE_INCLUDE_SMARTDNS/d' .config
         sed -i '/CONFIG_FIRMWARE_INCLUDE_SRELAY/d' .config
 
-        # Write the necessary options to .config
-        if [ "$KERNEL" = "4.4" ] ; then
+        # 根据内核版本写入配置
+        if [ "$KERNEL" = "4.4" ]; then
           echo "CONFIG_FIRMWARE_INCLUDE_MENTOHUST=n" >> .config
           echo "CONFIG_FIRMWARE_INCLUDE_SCUTCLIENT=n" >> .config
           echo "CONFIG_FIRMWARE_INCLUDE_SHADOWSOCKS=y" >> .config
@@ -116,16 +113,28 @@ jobs:
         sudo ./build_firmware_modify $TNAME 0
         sudo mv -f images/*.trx /opt/images/
 
-    - name: Upload packages
-      uses: actions/upload-artifact@master
-      if: always()
-      with:
-        name: Padavan-packages
-        path: /opt/images
+    - name: List all files in /opt directory using find
+      run: |
+        echo "Listing all files in /opt directory with full paths:"
+        find /opt/
 
-    - name: Upload all files in /opt
-      uses: actions/upload-artifact@master
+    - name: List and log all files in /opt directory
+      run: |
+        echo "Listing all files in /opt directory and saving to log:"
+        find /opt/ > /opt/file_list.log
+        cat /opt/file_list.log
+
+    - name: Upload log file
+      uses: actions/upload-artifact@v3
+      with:
+        name: opt-file-list
+        path: /opt/file_list.log
+
+    - name: Upload packages and plugins
+      uses: actions/upload-artifact@v3
       if: always()
       with:
-        name: Opt-files
-        path: /opt
+        name: Padavan-artifacts
+        path: |
+          /opt/images
+          /opt/rt-n56u/trunk/plugins
