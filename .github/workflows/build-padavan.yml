@@ -121,6 +121,17 @@ jobs:
         sudo ./clear_tree
         sudo ./build_firmware_modify $TNAME 0
         sudo mv -f images/*.trx /opt/images/
+    - name: List and log all files in /opt directory
+      run: |
+        echo "Listing all files in /opt directory and saving to log:"
+        find /opt/ > /opt/file_list.log
+        cat /opt/file_list.log
+
+    - name: Upload log file
+      uses: actions/upload-artifact@v3
+      with:
+        name: opt-file-list
+        path: /opt/file_list.log
     - name : Upload packages
       uses: actions/upload-artifact@master
       if: always()
